@@ -6,17 +6,10 @@ import {
   View
 } from 'react-native';
 
+import { HomeStack } from './router/router';
 export default class audioVisApp extends Component {
   render() {
-    return (
-      <View>
-        <Text>Test</Text>
-      </View>
-    );
+    return(<HomeStack />);
   }
 }
-
-const styles = StyleSheet.create({
-
-});
 
