@@ -14,19 +14,55 @@ import YouTube, { YouTubeStandaloneIOS, YouTubeStandaloneAndroid } from 'react-n
 import Icon from 'react-native-vector-icons/FontAwesome';
 
 export default class RCTYouTubeExample extends Component {
-  state = {
-    isReady: false,
-    status: null,
-    quality: null,
-    error: null,
-    isPlaying: false,
-    isLooping: true,
-    duration: 0,
-    currentTime: 0,
-    fullscreen: false,
-    containerMounted: false,
-    containerWidth: null,
-  };
+  constructor(props){
+    super(props);
+    this.state = {
+      isReady: false,
+      status: null,
+      quality: null,
+      error: null,
+      isPlaying: false,
+      isLooping: true,
+      duration: 0,
+      currentTime: 0,
+      fullscreen: false,
+      containerMounted: false,
+      containerWidth: null,
+    };
+  }
+
+  updateTime(sec){
+    this._youTubeRef && this._youTubeRef.seekTo(this.state.currentTime+sec);
+    //update current time and duration on android de
+    if(Platform.OS === 'android'){
+      if (this._youTubeRef) {
+        this._youTubeRef
+          .currentTime()
+          .then(currentTime => this.setState({ currentTime }))
+          .catch(errorMessage => this.setState({ error: errorMessage }));
+      }
+    }
+  }
+
+  stop = ()=>{
+    clearInterval(playPause); //stop the interval
+    this.setState({
+      isPlaying: false,
+      duration: 0,
+      currentTime: 0,
+    })
+    this._youTubeRef && this._youTubeRef.seekTo(0); 
+  }
+
+  componentDidMount(){
+    console.log(this.state.isPlaying);
+    playPause = setInterval(() =>{
+      opposite = this.state.isPlaying;
+      console.log(opposite);
+      this.setState({ isPlaying: !opposite })
+    }, 5000)
+
+  }
 
   render() {
     return (
@@ -65,9 +101,10 @@ export default class RCTYouTubeExample extends Component {
                 : undefined
             }
           />}
-
-        {/* Playing / Looping */}
+        
+        {/*the container that holds the buttons*/}
         <View style={styles.buttonGroup}>
+          {/**/}    
           <TouchableOpacity
             style={styles.button}
             onPress={() => this._youTubeRef && this._youTubeRef.previousVideo()}
@@ -77,6 +114,7 @@ export default class RCTYouTubeExample extends Component {
               size = {25}
             />
           </TouchableOpacity>
+          {/*seek 15 seconds behind*/}  
           <TouchableOpacity
             style={styles.button}
             onPress={() => this._youTubeRef && this._youTubeRef.seekTo(this.state.currentTime-15)}
@@ -86,6 +124,7 @@ export default class RCTYouTubeExample extends Component {
               size = {25}
             />
           </TouchableOpacity>
+          {/*play pause button */}  
           <TouchableOpacity
             style={styles.button}
             onPress={() => this.setState(s => ({ isPlaying: !s.isPlaying }))}
@@ -95,6 +134,18 @@ export default class RCTYouTubeExample extends Component {
               size = {25}
             />
           </TouchableOpacity>
+            {/*play pause button */}  
+            <TouchableOpacity
+            style={styles.button}
+            onPress={this.stop.bind(this)}
+          >
+            <Icon
+              name = 'stop'
+              size = {25}
+            />
+          </TouchableOpacity>
+
+          {/*button to turn on repeat*/}  
           <TouchableOpacity
             style={styles.button}
             onPress={() => this.setState(s => ({ isLooping: !s.isLooping }))}
@@ -104,9 +155,18 @@ export default class RCTYouTubeExample extends Component {
               size = {25}
             />
           </TouchableOpacity>
+          {/*seek 15 seconds forward*/}  
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => this._youTubeRef && this._youTubeRef.seekTo(this.state.currentTime+15)}
+          >
+            <Icon
+              name = 'fast-forward'
+              size = {25}
+            />
+          </TouchableOpacity> 
 
-        {/* Previous / Next video */}
-
+          {/*Go to the next Video*/}      
           <TouchableOpacity
             style={styles.button}
             onPress={() => this._youTubeRef && this._youTubeRef.nextVideo()}
@@ -116,17 +176,6 @@ export default class RCTYouTubeExample extends Component {
               size = {25}
             />
           </TouchableOpacity>
-
-        {/* Go To Specific time in played video with seekTo() */}
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => this._youTubeRef && this._youTubeRef.seekTo(this.state.currentTime+15)}
-          >
-            <Icon
-              name = 'fast-forward'
-              size = {25}
-            />
-          </TouchableOpacity>          
         </View>
 
         {/* Fullscreen */}
@@ -151,82 +200,14 @@ export default class RCTYouTubeExample extends Component {
                     .currentTime()
                     .then(currentTime => this.setState({ currentTime }))
                     .catch(errorMessage => this.setState({ error: errorMessage }));
-                  this._youTubeRef
-                    .duration()
-                    .then(duration => this.setState({ duration }))
-                    .catch(errorMessage => this.setState({ error: errorMessage }));
+                  // this._youTubeRef
+                  //   .duration()
+                  //   .then(duration => this.setState({ duration }))
+                  //   .catch(errorMessage => this.setState({ error: errorMessage }));
                 }
               }}
             >
               <Text style={styles.buttonText}>Update Progress & Duration (Android)</Text>
-            </TouchableOpacity>
-          </View>}
-
-        {/* Standalone Player (iOS) */}
-        {Platform.OS === 'ios' &&
-          YouTubeStandaloneIOS &&
-          <View style={styles.buttonGroup}>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() =>
-                YouTubeStandaloneIOS.playVideo('KVZ-P-ZI6W4')
-                  .then(() => console.log('iOS Standalone Player Finished'))
-                  .catch(errorMessage => this.setState({ error: errorMessage }))}
-            >
-              <Text style={styles.buttonText}>Launch Standalone Player</Text>
-            </TouchableOpacity>
-          </View>}
-
-        {/* Standalone Player (Android) */}
-        {Platform.OS === 'android' &&
-          YouTubeStandaloneAndroid &&
-          <View style={styles.buttonGroup}>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() =>
-                YouTubeStandaloneAndroid.playVideo({
-                  apiKey: 'AIzaSyDGi6GsCAWGrp44ddbnZzpZDed9mN0it-g',
-                  videoId: 'KVZ-P-ZI6W4',
-                  autoplay: true,
-                  lightboxMode: false,
-                  startTime: 124.5,
-                })
-                  .then(() => console.log('Android Standalone Player Finished'))
-                  .catch(errorMessage => this.setState({ error: errorMessage }))}
-            >
-              <Text style={styles.buttonText}>Standalone: One Video</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() =>
-                YouTubeStandaloneAndroid.playVideos({
-                  apiKey: 'AIzaSyDGi6GsCAWGrp44ddbnZzpZDed9mN0it-g',
-                  videoIds: ['HcXNPI-IPPM', 'XXlZfc1TrD0', 'czcjU1w-c6k', 'uMK0prafzw0'],
-                  autoplay: false,
-                  lightboxMode: true,
-                  startIndex: 1,
-                  startTime: 99.5,
-                })
-                  .then(() => console.log('Android Standalone Player Finished'))
-                  .catch(errorMessage => this.setState({ error: errorMessage }))}
-            >
-              <Text style={styles.buttonText}>Videos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() =>
-                YouTubeStandaloneAndroid.playPlaylist({
-                  apiKey: 'AIzaSyDGi6GsCAWGrp44ddbnZzpZDed9mN0it-g',
-                  playlistId: 'PLF797E961509B4EB5',
-                  autoplay: false,
-                  lightboxMode: false,
-                  startIndex: 2,
-                  startTime: 100.5,
-                })
-                  .then(() => console.log('Android Standalone Player Finished'))
-                  .catch(errorMessage => this.setState({ error: errorMessage }))}
-            >
-              <Text style={styles.buttonText}>Playlist</Text>
             </TouchableOpacity>
           </View>}
 
