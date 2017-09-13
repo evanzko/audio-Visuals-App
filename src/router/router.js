@@ -6,9 +6,11 @@ import {
     ScrollView
 } from 'react-native';
 import { StackNavigator, DrawerNavigator, DrawerItems, NavigationActions } from 'react-navigation';
+import MIcon from 'react-native-vector-icons/MaterialIcons';
 
 import splash from '../pages/splash';
 import audioHub from '../pages/audioHub';
+import learning from '../pages/learning';
 
 
 export const HomeStack = StackNavigator({
@@ -24,6 +26,19 @@ export const HomeStack = StackNavigator({
             header: null
         }
     },
+    learning: {
+        screen: learning,
+        navigationOptions: ({ navigation }) =>  {
+            return {
+                headerLeft:(
+                    <MIcon name="backspace" size={25} color="#000" backgroundColor="#fff" style = {{paddingLeft: 10}} onPress ={ () => navigation.navigate('audioHub') }/>
+                ),
+                title: 'Lets Learn!',
+                headerMode: 'screen',
+                gesturesEnabled: false,
+            }
+        }  
+    }
     
 },{
 });
