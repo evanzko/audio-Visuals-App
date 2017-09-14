@@ -24,6 +24,12 @@ export default class audioHub extends Component {
             <View style = {styles.screen}>
                 <View style = {styles.header} >
                     <Text style = {styles.title}>Select a video to learn</Text>
+                    <TouchableOpacity
+                        onPress = {() => this.props.navigation.navigate('recording')}
+                        style = {styles.preview}
+                    >
+                    <Text style = {styles.previewText}>Record Something</Text>
+                    </TouchableOpacity>
                 </View>
                 <View style = {styles.video}>
                     <TouchableOpacity

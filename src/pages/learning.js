@@ -85,8 +85,6 @@ export default class LearningPage extends Component {
         }}
         apiKey="AIzaSyDGi6GsCAWGrp44ddbnZzpZDed9mN0it-g"
         videoId= {Store.videoId} //allows for the video id to change with the store
-        // videoIds={['HcXNPI-IPPM', 'XXlZfc1TrD0', 'czcjU1w-c6k', 'uMK0prafzw0']}
-        // playlistId="PLF797E961509B4EB5"
         play={this.state.isPlaying}
         loop={this.state.isLooping}
         fullscreen={this.state.fullscreen}
