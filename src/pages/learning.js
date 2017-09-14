@@ -9,9 +9,13 @@ import {
   PixelRatio,
   Dimensions,
   Platform,
+  TouchableHighlight,
+  PermissionsAndroid,
 } from 'react-native';
 import YouTube, { YouTubeStandaloneIOS, YouTubeStandaloneAndroid } from 'react-native-youtube';
 import {observer} from 'mobx-react/native';
+import Sound from 'react-native-sound';
+import {AudioRecorder, AudioUtils} from 'react-native-audio';
 
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Store from '../store/videoStore';
@@ -22,26 +26,87 @@ export default class LearningPage extends Component {
   constructor(props){
     super(props);
     this.state = {
-      isReady: false,
-      status: null,
-      quality: null,
+      isReady: false, //is the player ready
+      status: null, //player status
+      quality: null, //video quality
       error: null,
-      isPlaying: false,
-      isLooping: true,
-      currentTime: 0,
-      fullscreen: false,
-      containerMounted: false,
-      containerWidth: null,
+      isPlaying: false, //if the video is playing
+      isLooping: true, //repeat is selected
+      vCurrentTime: 0, //current Time of the video
+      fullscreen: false, //fullscreen
+      containerMounted: false, //if the container is mounted
+      containerWidth: null, //the container width
+      rCurrentTime: 0.0, //recorder currentTime
+      recording: false, //recording or not
+      stoppedRecording: false, //if the stop button has been pressed
+      finished: false, //finished or not
+      audioPath: AudioUtils.DocumentDirectoryPath + '/test.aac', //path to the audio. Needs AudioUtils to access js Files
+      hasPermission: undefined, // has permissions or not. 
     };
   }
 
-  updateTime(sec){
+  //check to make sure the correct Permissions have been given
+  //renders a new Audio recorder and is ready to record 
+  componentDidMount() {
+    this._checkPermission().then((hasPermission) => {
+      this.setState({ hasPermission });
+
+      if (!hasPermission) return;
+
+      this.prepareRecordingPath(this.state.audioPath);
+
+      AudioRecorder.onProgress = (data) => {
+        this.setState({rCurrentTime: Math.floor(data.rCurrentTime)});
+      };
+
+      AudioRecorder.onFinished = (data) => {
+        // Android callback comes in the form of a promise instead.
+        if (Platform.OS === 'ios') {
+          this._finishRecording(data.status === "OK", data.audioFileURL);
+        }
+      };
+    });
+  }
+
+  //checks the permissions to make sure the app can record
+  _checkPermission() {
+    if (Platform.OS !== 'android') {
+      return Promise.resolve(true);
+    }
+
+    const rationale = {
+      'title': 'Microphone Permission',
+      'message': 'AudioExample needs access to your microphone so you can record audio.'
+    };
+
+    return PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, rationale)
+      .then((result) => {
+        console.log('Permission result:', result);
+        return (result === true || result === PermissionsAndroid.RESULTS.GRANTED);
+      });
+  }
+
+
+  //prepares the audio recorder with the specified audioPath
+  prepareRecordingPath(audioPath){
+    AudioRecorder.prepareRecordingAtPath(audioPath, {
+      SampleRate: 22050,
+      Channels: 1,
+      AudioQuality: "Low",
+      AudioEncoding: "aac",
+      AudioEncodingBitRate: 32000
+    });
+  }
+
+  //moves the current time to sec + current time
+  //a positive sec moves forwards and a negative sec moves backwards in the video  
+  updateCurrentTime(sec){
     //update current time and duration on android devices
     if(Platform.OS === 'android'){
       if (this._youTubeRef) {
         this._youTubeRef
           .currentTime()
-          .then(currentTime => this.setState({ currentTime }))
+          .then(currentTime => this.setState({ vCurrentTime }))
           .catch(errorMessage => this.setState({ error: errorMessage }));   
       }
     }
@@ -54,7 +119,7 @@ export default class LearningPage extends Component {
     this.setState({
       isPlaying: false,
       duration: 0,
-      currentTime: 0,
+      vCurrentTime: 0,
     })
     this._youTubeRef && this._youTubeRef.seekTo(0); 
   }
@@ -68,6 +133,114 @@ export default class LearningPage extends Component {
     }, 5000)
   }
 
+  _renderButton(title, onPress, active, icon) {
+    var style = (active) ? styles.activeButtonText : styles.buttonText;
+
+    return (
+      <TouchableHighlight style={styles.button} onPress={onPress}>
+        <Icon
+          name = {icon}
+          size = {25}
+        />
+      </TouchableHighlight>
+    );
+  }
+
+  async _pause() {
+    if (!this.state.recording) {
+      console.warn('Can\'t pause, not recording!');
+      return;
+    }
+
+    this.setState({stoppedRecording: true, recording: false});
+
+    try {
+      const filePath = await AudioRecorder.pauseRecording();
+
+      // Pause is currently equivalent to stop on Android.
+      if (Platform.OS === 'android') {
+        this._finishRecording(true, filePath);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async _stop() {
+    if (!this.state.recording) {
+      console.warn('Can\'t stop, not recording!');
+      return;
+    }
+
+    this.setState({stoppedRecording: true, recording: false});
+
+    try {
+      const filePath = await AudioRecorder.stopRecording();
+
+      if (Platform.OS === 'android') {
+        this._finishRecording(true, filePath);
+      }
+      return filePath;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async _play() {
+    if (this.state.recording) {
+      await this._stop();
+    }
+
+    // These timeouts are a hacky workaround for some issues with react-native-sound.
+    // See https://github.com/zmxv/react-native-sound/issues/89.
+    setTimeout(() => {
+      var sound = new Sound(this.state.audioPath, '', (error) => {
+        if (error) {
+          console.log('failed to load the sound', error);
+        }
+      });
+
+      setTimeout(() => {
+        sound.play((success) => {
+          if (success) {
+            console.log('successfully finished playing');
+          } else {
+            console.log('playback failed due to audio decoding errors');
+          }
+        });
+      }, 100);
+    }, 100);
+  }
+
+  async _record() {
+    if (this.state.recording) {
+      console.warn('Already recording!');
+      return;
+    }
+
+    if (!this.state.hasPermission) {
+      console.warn('Can\'t record, no permission granted!');
+      return;
+    }
+
+    if(this.state.stoppedRecording){
+      this.prepareRecordingPath(this.state.audioPath);
+    }
+
+    this.setState({recording: true});
+
+    try {
+      const filePath = await AudioRecorder.startRecording();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  //sets the state to 
+  _finishRecording(didSucceed, filePath) {
+    this.setState({ finished: didSucceed });
+    console.log(`Finished recording of duration ${this.state.rCurrentTime} seconds at path: ${filePath}`);
+  }
 
   render() {
     console.log(Store.videoId);
@@ -100,11 +273,12 @@ export default class LearningPage extends Component {
         onChangeFullscreen={e => this.setState({ fullscreen: e.isFullscreen })}
         onProgress={
           Platform.OS === 'ios'
-            ? e => this.setState({ duration: e.duration, currentTime: e.currentTime })
+            ? e => this.setState({ duration: e.duration, vCurrentTime: e.vCurrentTime })
             : undefined
         }
       />}
       
+      <Text style = {styles.videoControl}>Video Controls</Text>
       {/*the container that holds the buttons*/}
       <View style={styles.buttonGroup}>
         {/**/}    
@@ -120,7 +294,7 @@ export default class LearningPage extends Component {
         {/*seek 15 seconds behind*/}  
         <TouchableOpacity
           style={styles.button}
-          onPress={this.updateTime.bind(this,-15)}
+          onPress={this.updateCurrentTime.bind(this,-15)}
         >
           <Icon
             name = 'fast-backward'
@@ -161,7 +335,7 @@ export default class LearningPage extends Component {
         {/*seek 15 seconds forward*/}  
         <TouchableOpacity
           style={styles.button}
-          onPress={this.updateTime.bind(this,15)}
+          onPress={this.updateCurrentTime.bind(this,15)}
         >
           <Icon
             name = 'fast-forward'
@@ -213,15 +387,11 @@ export default class LearningPage extends Component {
           </TouchableOpacity>
         </View>}
 
-      <Text style={styles.instructions}>
-        {this.state.isReady ? 'Player is ready' : 'Player setting up...'}
-      </Text>
-      <Text style={styles.instructions}>
-        Status: {this.state.status}
-      </Text>
-      <Text style={styles.instructions}>
-        Quality: {this.state.quality}
-      </Text>
+      <View style={styles.container}>
+      <View style={styles.controls}>
+        {this._renderButton("RECORD", () => {this._record()}, this.state.recording, "microphone" )}
+      </View>
+    </View>
     </ScrollView>
     );
   }
@@ -260,5 +430,15 @@ const styles = StyleSheet.create({
   player: {
     alignSelf: 'stretch',
     marginVertical: 10,
+  },
+  progressText: {
+    paddingTop: 50,
+    fontSize: 50,
+    color: "#95a5a6"
+  },
+  controls: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
   },
 });
