@@ -36,12 +36,13 @@ export default class LearningPage extends Component {
       fullscreen: false, //fullscreen
       containerMounted: false, //if the container is mounted
       containerWidth: null, //the container width
-      rCurrentTime: 0.0, //recorder currentTime
+      currentTime: 0.0, //recorder currentTime
       recording: false, //recording or not
       stoppedRecording: false, //if the stop button has been pressed
       finished: false, //finished or not
       audioPath: AudioUtils.DocumentDirectoryPath + '/test.aac', //path to the audio. Needs AudioUtils to access js Files
-      hasPermission: undefined, // has permissions or not. 
+      hasPermission: undefined, // has permissions or not
+      intervalStarted: false,
     };
   }
 
@@ -56,7 +57,7 @@ export default class LearningPage extends Component {
       this.prepareRecordingPath(this.state.audioPath);
 
       AudioRecorder.onProgress = (data) => {
-        this.setState({rCurrentTime: Math.floor(data.rCurrentTime)});
+        this.setState({currentTime: Math.floor(data.currentTime)});
       };
 
       AudioRecorder.onFinished = (data) => {
@@ -115,7 +116,10 @@ export default class LearningPage extends Component {
   }
 
   stop = () =>{
-    clearInterval(playPause); //stop the interval
+    console.log(this.state.intervalStarted)
+    if(this.state.intervalStarted){
+      clearInterval(playPause); //stop the interval
+    }
     this.setState({
       isPlaying: false,
       duration: 0,
@@ -126,6 +130,7 @@ export default class LearningPage extends Component {
 
   startInterval = () => {
     console.log(this.state.isPlaying);
+    this.setState({intervalStarted: true})
     playPause = setInterval(() =>{
       opposite = this.state.isPlaying;
       console.log(opposite);
@@ -133,38 +138,18 @@ export default class LearningPage extends Component {
     }, 5000)
   }
 
-  _renderButton(title, onPress, active, icon) {
+  _renderButton(title, onPress, active, icon, size, bstyle) {
     var style = (active) ? styles.activeButtonText : styles.buttonText;
-
     return (
-      <TouchableHighlight style={styles.button} onPress={onPress}>
+      <TouchableHighlight style={bstyle} onPress={onPress}>
         <Icon
           name = {icon}
-          size = {25}
+          size = {size}
         />
       </TouchableHighlight>
     );
   }
 
-  async _pause() {
-    if (!this.state.recording) {
-      console.warn('Can\'t pause, not recording!');
-      return;
-    }
-
-    this.setState({stoppedRecording: true, recording: false});
-
-    try {
-      const filePath = await AudioRecorder.pauseRecording();
-
-      // Pause is currently equivalent to stop on Android.
-      if (Platform.OS === 'android') {
-        this._finishRecording(true, filePath);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }
 
   async _stop() {
     if (!this.state.recording) {
@@ -186,31 +171,6 @@ export default class LearningPage extends Component {
     }
   }
 
-  async _play() {
-    if (this.state.recording) {
-      await this._stop();
-    }
-
-    // These timeouts are a hacky workaround for some issues with react-native-sound.
-    // See https://github.com/zmxv/react-native-sound/issues/89.
-    setTimeout(() => {
-      var sound = new Sound(this.state.audioPath, '', (error) => {
-        if (error) {
-          console.log('failed to load the sound', error);
-        }
-      });
-
-      setTimeout(() => {
-        sound.play((success) => {
-          if (success) {
-            console.log('successfully finished playing');
-          } else {
-            console.log('playback failed due to audio decoding errors');
-          }
-        });
-      }, 100);
-    }, 100);
-  }
 
   async _record() {
     if (this.state.recording) {
@@ -239,11 +199,10 @@ export default class LearningPage extends Component {
   //sets the state to 
   _finishRecording(didSucceed, filePath) {
     this.setState({ finished: didSucceed });
-    console.log(`Finished recording of duration ${this.state.rCurrentTime} seconds at path: ${filePath}`);
+    console.log(`Finished recording of duration ${this.state.currentTime} seconds at path: ${filePath}`);
   }
 
   render() {
-    console.log(Store.videoId);
     return (
       <ScrollView
       style={styles.container}
@@ -281,78 +240,20 @@ export default class LearningPage extends Component {
       <Text style = {styles.videoControl}>Video Controls</Text>
       {/*the container that holds the buttons*/}
       <View style={styles.buttonGroup}>
-        {/**/}    
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => this._youTubeRef && this._youTubeRef.previousVideo()}
-        >
-          <Icon
-            name = 'step-backward'
-            size = {25}
-          />
-        </TouchableOpacity>
+        {/*go to the previous video*/}    
+        {this._renderButton("PREVIOUS", () => {this._youTubeRef && this._youTubeRef.previousVideo()},"" ,"step-backward",25, styles.button)}
         {/*seek 15 seconds behind*/}  
-        <TouchableOpacity
-          style={styles.button}
-          onPress={this.updateCurrentTime.bind(this,-15)}
-        >
-          <Icon
-            name = 'fast-backward'
-            size = {25}
-          />
-        </TouchableOpacity>
+        {this._renderButton("Seek back", this.updateCurrentTime.bind(this,-15),"" ,"fast-backward",25, styles.button )}
         {/*play pause button */}  
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => this.setState(s => ({ isPlaying: !s.isPlaying }))}
-        >
-          <Icon
-            name = {this.state.status == 'playing' ? 'pause' : 'play'}
-            size = {25}
-          />
-        </TouchableOpacity>
-          {/*play pause button */}  
-          <TouchableOpacity
-          style={styles.button}
-          onPress={this.stop.bind(this)}
-        >
-          <Icon
-            name = 'stop'
-            size = {25}
-          />
-        </TouchableOpacity>
-
+        {this._renderButton("Play", () => this.setState(s => ({ isPlaying: !s.isPlaying })),"" ,this.state.status == 'playing' ? 'pause' : 'play',25, styles.button )}
+        {/*play pause button */}  
+        {this._renderButton("Stop", this.stop.bind(this),"" , 'stop',25, styles.button)}
         {/*button to turn on repeat*/}  
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => this.setState(s => ({ isLooping: !s.isLooping }))}
-        >
-          <Icon
-            name = 'repeat'
-            size = {25}
-          />
-        </TouchableOpacity>
+        {this._renderButton("Repeat", () => this.setState(s => ({ isLooping: !s.isLooping })),"" , 'repeat',25, styles.button)}
         {/*seek 15 seconds forward*/}  
-        <TouchableOpacity
-          style={styles.button}
-          onPress={this.updateCurrentTime.bind(this,15)}
-        >
-          <Icon
-            name = 'fast-forward'
-            size = {25}
-          />
-        </TouchableOpacity> 
-
+        {this._renderButton("Seek Forward",this.updateCurrentTime.bind(this,15),"" , 'fast-forward',25, styles.button)}
         {/*Go to the next Video*/}      
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => this._youTubeRef && this._youTubeRef.nextVideo()}
-        >
-          <Icon
-            name = 'step-forward'
-            size = {25}
-          />
-        </TouchableOpacity>
+        {this._renderButton("step-forward", () => this._youTubeRef && this._youTubeRef.nextVideo(),"" , 'step-forward',25, styles.button)}
       </View>
 
       {/* Fullscreen */}
@@ -388,8 +289,16 @@ export default class LearningPage extends Component {
         </View>}
 
       <View style={styles.container}>
-      <View style={styles.controls}>
-        {this._renderButton("RECORD", () => {this._record()}, this.state.recording, "microphone" )}
+      <View style={styles.recordControls}>
+        <TouchableHighlight
+          onPress= {() => {this.state.recording? this._stop(): this._record()}}
+        >
+        <Icon
+          name = 'microphone'
+          size = {75}
+          style = {{color:this.state.recording? 'red': 'blue'}}
+        />
+        </TouchableHighlight>
       </View>
     </View>
     </ScrollView>
@@ -436,9 +345,12 @@ const styles = StyleSheet.create({
     fontSize: 50,
     color: "#95a5a6"
   },
-  controls: {
+  recordControls: {
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
+  },
+  videoControl: {
+    alignSelf: 'center',
+    fontSize: 20
   },
 });
