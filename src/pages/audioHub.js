@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import Store from '../store/videoStore';
+import HelloWorld from './HelloWorld'
 
 
 export default class audioHub extends Component {
@@ -18,8 +19,17 @@ export default class audioHub extends Component {
         this.props.navigation.navigate('learning'); //navigate to the learning page
     }
 
+    async helloWorld(){
+        try {
+            let helloWorldStr = await HelloWorld.helloWorld();
+            console.log(helloWorldStr);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
     render(){
-        
+        // this.helloWorld().then(console.log("finished"));
         return(
             <View style = {styles.screen}>
                 <View style = {styles.header} >

@@ -11,6 +11,7 @@ import {
 
 var {height, width} = Dimensions.get('window');
 export default class audioVisApp extends Component {
+
   render() {
     return (
       <View>

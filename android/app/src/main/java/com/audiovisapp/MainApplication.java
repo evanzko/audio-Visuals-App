@@ -2,6 +2,7 @@ package com.audiovisapp;
 
 import android.app.Application;
 
+import com.audiovisapp.MyReactPackage;
 import com.facebook.react.ReactApplication;
 import com.inprogress.reactnativeyoutube.ReactNativeYouTube;
 import com.oblador.vectoricons.VectorIconsPackage;
@@ -28,11 +29,12 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
-            new ReactNativeYouTube(),
-            new VectorIconsPackage(),
-            new RNSoundPackage(),
-            new ReactNativeAudioPackage(),
-            new RNFSPackage()
+          new ReactNativeYouTube(),
+          new VectorIconsPackage(),
+          new RNSoundPackage(),
+          new ReactNativeAudioPackage(),
+          new RNFSPackage(),
+          new MyReactPackage()
       );
     }
   };
