@@ -6,13 +6,24 @@ import {
   View,
   Image,
   Dimensions,
-  TouchableOpacity
+  TouchableOpacity,
+  NativeModules
 } from 'react-native';
 
 var {height, width} = Dimensions.get('window');
+const HelloWorld = NativeModules.HelloWorld;
 export default class audioVisApp extends Component {
-
+  
+  async helloWorld(){
+    try {
+        let helloWorldStr = await HelloWorld.helloWorld();
+        console.log(helloWorldStr);
+    } catch (e) {
+        console.error(e);
+    }
+  }
   render() {
+    this.helloWorld();
     return (
       <View>
         <View>

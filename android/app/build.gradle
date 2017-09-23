@@ -91,17 +91,20 @@ def enableSeparateBuildPerCPUArchitecture = false
 def enableProguardInReleaseBuilds = false
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion "23.0.1"
+    compileSdkVersion 26
+    buildToolsVersion "26.0.1"
 
     defaultConfig {
         applicationId "com.audiovisapp"
         minSdkVersion 16
-        targetSdkVersion 22
+        targetSdkVersion 26
         versionCode 1
         versionName "1.0"
         ndk {
             abiFilters "armeabi-v7a", "x86"
+            moduleName "hello_world_jni"
+            ldLibs "log"
+            cFlags "-std=c99"
         }
     }
     splits {
@@ -141,7 +144,6 @@ dependencies {
     compile project(':react-native-sound')
     compile project(':react-native-audio')
     compile project(':react-native-youtube')
-    compile project(':react-native-fs')
 }
 
 // Run this once to be able to run the application with BUCK
